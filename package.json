@@ -1,6 +1,6 @@
 {
     "name": "katex-canvas",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Draw KaTeX formulas on a 2D canvas (unofficial, not affiliated with KaTeX)",
     "keywords": [
         "katex",
@@ -8,7 +8,10 @@
         "math",
         "latex",
         "tex",
-        "typesetting"
+        "typesetting",
+        "formula",
+        "offscreencanvas",
+        "worker"
     ],
     "license": "MIT",
     "author": "Michael Strobel",

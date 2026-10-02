@@ -1,5 +1,9 @@
 # katex-canvas
 
+[![npm](https://img.shields.io/npm/v/katex-canvas)](https://www.npmjs.com/package/katex-canvas)
+[![CI](https://github.com/strobelm/katex-canvas/actions/workflows/ci.yml/badge.svg)](https://github.com/strobelm/katex-canvas/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/katex-canvas)](LICENSE)
+
 > **Unofficial.** katex-canvas is an independent project. It is not affiliated with, endorsed by or
 > maintained by the KaTeX project or Khan Academy. It uses KaTeX, which you install yourself; please
 > report problems with this package [here](https://github.com/strobelm/katex-canvas/issues), not to KaTeX.

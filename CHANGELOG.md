@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- README: npm, CI and license badges.
+- More package keywords (offscreencanvas, worker, formula).
+- Published from GitHub Actions with npm trusted publishing, so the package carries provenance.
+
 ## 0.1.0
 
 First release: the canvas backend of the CindyJS KaTeX plugin as a package of its own.
