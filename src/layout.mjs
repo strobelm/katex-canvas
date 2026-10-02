@@ -382,13 +382,16 @@ let layoutCtx = null;
 
 function isColor(color) {
     if (!color) return false;
+    if (typeof CSS === "undefined" || !CSS.supports) {
+        // Not cached: the answer is the context's, which may be a stand-in
+        // that accepts anything (as when only collecting fonts).
+        return layoutCtx ? canvasAccepts(layoutCtx, color) : true;
+    }
     let valid = colors.get(color);
     if (valid === undefined) {
-        if (typeof CSS !== "undefined" && CSS.supports) valid = CSS.supports("color", color);
-        else if (layoutCtx) valid = canvasAccepts(layoutCtx, color);
-        else return true;
         // Colours computed from animated values are all different.
         if (colors.size >= 1024) colors.clear();
+        valid = CSS.supports("color", color);
         colors.set(color, valid);
     }
     return valid;
@@ -1139,6 +1142,9 @@ function append(box, b) {
  *        rendering, `images` the URLs of images to pass to `render`
  */
 export function layout(tree, ctx, options) {
+    if (!(options && options.fontSize > 0 && Number.isFinite(options.fontSize))) {
+        throw new TypeError(`katex-canvas: fontSize must be a positive number, not ${options && options.fontSize}`);
+    }
     const root = {
         family: ROOT_FAMILY,
         style: "normal",

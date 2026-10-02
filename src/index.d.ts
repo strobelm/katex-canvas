@@ -72,9 +72,12 @@ export interface RenderOptions {
     baseline?: "alphabetic" | "top" | "middle" | "bottom";
 }
 
-export interface TeXOptions extends LayoutOptions {
+export interface SyncTeXOptions extends LayoutOptions {
     /** Options for KaTeX, as for `katex.render`. */
     katexOptions?: object;
+}
+
+export interface TeXOptions extends SyncTeXOptions {
     /** The FontFaceSet to load fonts into; default `document.fonts`, or `self.fonts` in workers. */
     fontSet?: FontFaceSet;
 }
@@ -93,7 +96,7 @@ export function layout(tree: HtmlTree, ctx: MeasuringContext, options: LayoutOpt
 export function render(ctx: DrawingContext, box: Box, x: number, y: number, options?: RenderOptions): void;
 
 /** Typesets and lays out `tex` without waiting for fonts (see `fontsLoaded`). Throws KaTeX's ParseError. */
-export function layoutTeXSync(katex: KatexLike, tex: string, ctx: MeasuringContext, options: TeXOptions): Box;
+export function layoutTeXSync(katex: KatexLike, tex: string, ctx: MeasuringContext, options: SyncTeXOptions): Box;
 
 /** Typesets and lays out `tex`, loading the fonts it needs first. */
 export function layoutTeX(katex: KatexLike, tex: string, ctx: MeasuringContext, options: TeXOptions): Promise<Box>;
@@ -108,13 +111,19 @@ export function drawTeX(
     options: TeXOptions & RenderOptions,
 ): Promise<Box>;
 
-/** Whether `loadFonts` is done with all of `fonts`: loaded, or given up on (failed or undefined). */
+/** Whether `loadFonts` is done with all of `fonts`: loaded, or given up on for now (failed or not defined). */
 export function fontsLoaded(fonts: readonly string[], options?: FontOptions): boolean;
 
-/** Loads `fonts`; resolves to true if a layout made before needs to be redone. */
+/**
+ * Loads `fonts`; resolves to true if any became available, i.e. a layout made before needs to be redone.
+ * Fonts that fail or are not defined are given up on with a warning, and tried again by the next call.
+ */
 export function loadFonts(fonts: readonly string[], options?: FontOptions): Promise<boolean>;
 
-/** Registers KaTeX's fonts from `baseUrl` (KaTeX's `dist/fonts/` directory) without `katex.css`. */
+/**
+ * Registers KaTeX's fonts from `baseUrl` (KaTeX's `dist/fonts/` directory) without `katex.css`.
+ * Registering the same URL and format again returns the faces registered before.
+ */
 export function registerKatexFonts(
     baseUrl: string | URL,
     options?: FontOptions & { format?: "woff2" | "woff" | "ttf" },

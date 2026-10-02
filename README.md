@@ -79,9 +79,10 @@ if (!fontsLoaded(box.fonts)) {
 render(ctx, box, x, y);
 ```
 
-`loadFonts(fonts)` resolves to `true` if it loaded anything new. A face that fails to load, or isn't defined
-(no `katex.css` or `registerKatexFonts` yet), is given up on with a warning, and text falls back to other
-fonts, so define the fonts before the first `loadFonts`.
+`loadFonts(fonts)` resolves to `true` if any of them became available. A face that fails to load, or isn't
+defined (no `katex.css` or `registerKatexFonts` yet), is given up on for now with a warning, so that
+`fontsLoaded` turns true and text is drawn in fallback fonts instead of waiting forever; the next
+`loadFonts` tries it again (`layoutTeX` calls it every time).
 
 ### Low level: `layout(tree, ctx, options)`
 
@@ -99,6 +100,8 @@ The formulas use KaTeX's fonts, so they have to be defined:
     ```js
     registerKatexFonts("/assets/katex/fonts/"); // wherever katex/dist/fonts is served
     ```
+
+    A relative URL is resolved against the page, or in a worker against the worker's script.
 
 The fonts are KaTeX's (SIL Open Font License), not part of this package.
 

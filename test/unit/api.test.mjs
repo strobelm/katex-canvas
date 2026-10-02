@@ -71,25 +71,31 @@ describe("font loading", function () {
         assert.lengthOf(fontSet.loads, 2);
     });
 
-    it("gives up on faces that fail to load, with a warning", async function () {
+    it("gives up on faces that fail to load, with a warning, and retries them", async function () {
         const fontSet = fakeFontSet([], { fail: true });
         const fonts = ["normal normal 20px KaTeX_AMS"];
         const { result, warnings } = await quietly(() => loadFonts(fonts, { fontSet }));
-        assert.isTrue(result);
+        assert.isFalse(result);
         assert.isTrue(fontsLoaded(fonts, { fontSet }));
         assert.match(warnings[0], /KaTeX_AMS could not be loaded/);
+        const again = await quietly(() => loadFonts(fonts, { fontSet }));
+        assert.lengthOf(fontSet.loads, 2);
+        assert.lengthOf(again.warnings, 0, "warned once");
     });
 
-    it("gives up on faces that are not defined, with a warning", async function () {
-        const fontSet = fakeFontSet([]);
+    it("loads faces that were not defined yet once they are", async function () {
+        const families = [];
+        const fontSet = fakeFontSet(families);
         const fonts = ["normal normal 20px KaTeX_Script"];
         const { result, warnings } = await quietly(() => loadFonts(fonts, { fontSet }));
         // Nothing to lay out again for, but nothing to wait for either.
         assert.isFalse(result);
         assert.isTrue(fontsLoaded(fonts, { fontSet }));
         assert.match(warnings[0], /KaTeX_Script is not defined/);
-        await loadFonts(fonts, { fontSet });
-        assert.lengthOf(fontSet.loads, 1);
+        families.push("KaTeX_Script"); // the stylesheet arrived
+        assert.isTrue(await loadFonts(fonts, { fontSet }));
+        assert.isFalse(await loadFonts(fonts, { fontSet }));
+        assert.lengthOf(fontSet.loads, 2);
     });
 
     it("registers KaTeX's faces", function () {
@@ -112,6 +118,10 @@ describe("font loading", function () {
             );
             const size1 = faces.find((f) => f.family === "KaTeX_Size1");
             assert.include(size1.source, "/KaTeX_Size1-Regular.woff2");
+            assert.strictEqual(registerKatexFonts("https://example.com/katex/fonts/", { fontSet }), faces);
+            assert.lengthOf(fontSet.added, 20, "registered once");
+            assert.lengthOf(registerKatexFonts("https://example.com/katex/fonts", { fontSet, format: "woff" }), 20);
+            assert.throws(() => registerKatexFonts("x", { fontSet, format: "otf" }), /unknown format/);
         } finally {
             delete globalThis.FontFace;
         }
@@ -138,6 +148,15 @@ describe("layoutTeX", function () {
         });
         assert.deepEqual(box.fonts, ["normal normal 20px KaTeX_AMS"]);
         assert.throws(() => layoutTeXSync(katex, "\\frac{", measureCtx, { fontSize: 20 }), katex.ParseError);
+    });
+
+    it("rejects a missing font size and things that are not KaTeX", function () {
+        assert.throws(() => layoutTeXSync(katex, "x", measureCtx), /fontSize must be a positive number/);
+        assert.throws(() => layoutTeXSync(katex, "x", measureCtx, { fontSize: NaN }), /fontSize/);
+        const notKatex = { version: "0.19.0" };
+        for (let i = 0; i < 2; ++i) {
+            assert.throws(() => layoutTeXSync(notKatex, "x", measureCtx, { fontSize: 20 }), /pass the KaTeX module/);
+        }
     });
 
     it("warns about untested KaTeX versions, once per module", async function () {
@@ -179,6 +198,37 @@ describe("colours", function () {
             ["a", "red"],
             ["b", "red"],
         ]);
+    });
+});
+
+describe("colours without CSS.supports", function () {
+    // A context that, like a real one, ignores invalid fill styles.
+    function strictCtx() {
+        return {
+            ...measureCtx,
+            style: "#000000",
+            get fillStyle() {
+                return this.style;
+            },
+            set fillStyle(v) {
+                if (/^(#[0-9a-f]{6}|red|blue)$/.test(v)) this.style = v === "red" ? "#ff0000" : v;
+            },
+        };
+    }
+
+    it("are checked on the context by layoutTeX too", async function () {
+        const box = await layoutTeX(katex, "\\textcolor{bogus}{x}", strictCtx(), {
+            fontSize: 20,
+            fontSet: fakeFontSet(["KaTeX_Math"]),
+        });
+        const texts = [];
+        (function walk(ops) {
+            for (const op of ops) {
+                if (op.type === "text") texts.push(op.color);
+                if (op.ops) walk(op.ops);
+            }
+        })(box.ops);
+        assert.deepEqual(texts, [null]);
     });
 });
 

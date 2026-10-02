@@ -1,6 +1,6 @@
 {
     "name": "katex-canvas",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "Draw KaTeX formulas on a 2D canvas (unofficial, not affiliated with KaTeX)",
     "keywords": [
         "katex",

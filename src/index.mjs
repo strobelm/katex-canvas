@@ -27,6 +27,9 @@ const checked = new WeakSet();
 
 function checkVersion(katex) {
     if (checked.has(katex)) return;
+    if (!katex || typeof katex.__renderToHTMLTree !== "function") {
+        throw new Error("katex-canvas: pass the KaTeX module (it has no __renderToHTMLTree)");
+    }
     checked.add(katex);
     const m = /^(\d+)\.(\d+)\.(\d+)/.exec(katex.version || "");
     const v = m ? [+m[1], +m[2], +m[3]] : null;
@@ -36,9 +39,6 @@ function checkVersion(katex) {
             `katex-canvas: KaTeX ${katex.version} is outside the tested range ${SUPPORTED_KATEX}; ` +
                 "formulas may be laid out wrongly",
         );
-    }
-    if (typeof katex.__renderToHTMLTree !== "function") {
-        throw new Error("katex-canvas: this KaTeX has no __renderToHTMLTree");
     }
 }
 
@@ -65,7 +65,7 @@ function layoutOptions(options) {
  *        `katex.render`), and `pixelRatio`, `displayWidth`, `images` as for
  *        `layout`
  */
-export function layoutTeXSync(katex, tex, ctx, options) {
+export function layoutTeXSync(katex, tex, ctx, options = {}) {
     checkVersion(katex);
     const tree = katex.__renderToHTMLTree(tex, options.katexOptions || {});
     return layout(tree, ctx, layoutOptions(options));
@@ -76,7 +76,7 @@ export function layoutTeXSync(katex, tex, ctx, options) {
  * layout is final. `options.fontSet` selects the FontFaceSet to load into
  * (default: `document.fonts`, or `self.fonts` in workers).
  */
-export async function layoutTeX(katex, tex, ctx, options) {
+export async function layoutTeX(katex, tex, ctx, options = {}) {
     checkVersion(katex);
     const tree = katex.__renderToHTMLTree(tex, options.katexOptions || {});
     // The fonts are collected by a layout that measures nothing: in
@@ -100,7 +100,7 @@ const NOT_MEASURING = {
  * context's fill style. Takes the options of `layoutTeX` and `render`.
  * Resolves to the laid-out box.
  */
-export async function drawTeX(katex, ctx, tex, x, y, options) {
+export async function drawTeX(katex, ctx, tex, x, y, options = {}) {
     const box = await layoutTeX(katex, tex, ctx, options);
     render(ctx, box, x, y, options);
     return box;
