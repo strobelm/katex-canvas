@@ -28,4 +28,12 @@ jobs:
             - run: npm run test:browser
             - name: Tag matches package.json
               run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-            - run: npm publish
+            # 0.1.0 was published by hand, before trusted publishing could be set up.
+            - name: Skip versions already on npm
+              id: published
+              run: |
+                  if npm view "katex-canvas@$(node -p 'require("./package.json").version')" version >/dev/null 2>&1; then
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                  fi
+            - if: steps.published.outputs.skip != 'true'
+              run: npm publish
