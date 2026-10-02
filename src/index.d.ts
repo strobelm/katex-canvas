@@ -1,3 +1,5 @@
+import type { KatexOptions } from "katex";
+
 /**
  * The context `layout` measures with: any 2D canvas context, or a stand-in
  * with these members.
@@ -74,7 +76,7 @@ export interface RenderOptions {
 
 export interface SyncTeXOptions extends LayoutOptions {
     /** Options for KaTeX, as for `katex.render`. */
-    katexOptions?: object;
+    katexOptions?: KatexOptions;
 }
 
 export interface TeXOptions extends SyncTeXOptions {
@@ -96,12 +98,15 @@ export function layout(tree: HtmlTree, ctx: MeasuringContext, options: LayoutOpt
 export function render(ctx: DrawingContext, box: Box, x: number, y: number, options?: RenderOptions): void;
 
 /** Typesets and lays out `tex` without waiting for fonts (see `fontsLoaded`). Throws KaTeX's ParseError. */
-export function layoutTeXSync(katex: KatexLike, tex: string, ctx: MeasuringContext, options: SyncTeXOptions): Box;
+export function layoutTeXSync(katex: KatexLike, ctx: MeasuringContext, tex: string, options: SyncTeXOptions): Box;
 
 /** Typesets and lays out `tex`, loading the fonts it needs first. */
-export function layoutTeX(katex: KatexLike, tex: string, ctx: MeasuringContext, options: TeXOptions): Promise<Box>;
+export function layoutTeX(katex: KatexLike, ctx: MeasuringContext, tex: string, options: TeXOptions): Promise<Box>;
 
-/** Typesets, lays out and draws `tex` at (x, y) like `fillText`; resolves to the box. */
+/**
+ * Typesets, lays out and draws `tex` at (x, y) like `fillText`; resolves to the box. Drawn right away if the
+ * fonts are loaded, else once they are, with the context's state at the call (transform, styles, alpha, …).
+ */
 export function drawTeX(
     katex: KatexLike,
     ctx: DrawingContext,

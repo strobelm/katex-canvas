@@ -2,6 +2,7 @@ name: CI
 
 on:
     push:
+        branches: [main]
     pull_request:
 
 jobs:
@@ -14,8 +15,8 @@ jobs:
                 # The ends of the supported range (package.json peerDependencies).
                 katex: ["0.18.9", "0.19.0"]
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
@@ -28,7 +29,7 @@ jobs:
             - run: npx prettier --check .
             - run: npx playwright install --with-deps chromium
             - run: npm run test:browser
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: report-katex-${{ matrix.katex }}
@@ -39,15 +40,15 @@ jobs:
         runs-on: ubuntu-latest
         continue-on-error: true
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
             - run: npm ci
             - run: npx playwright install --with-deps firefox webkit
             - run: npm run test:engines
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: report-engines
@@ -59,15 +60,18 @@ jobs:
         name: WebKit on macOS (Safari)
         runs-on: macos-latest
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
             - run: npm ci
             - run: npx playwright install webkit
+            # WebKit's HTML is no pixel reference, see corpus.spec.mjs.
             - run: npm run test:engines -- --project webkit
-            - uses: actions/upload-artifact@v4
+              env:
+                  KATEX_CANVAS_SMOKE: 1
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: report-safari

@@ -17,6 +17,14 @@
  *
  * and review the diff. The gallery at report/index.html shows every case as
  * [reference | canvas | diff].
+ *
+ * With KATEX_CANVAS_SMOKE set (CI does so for WebKit on macOS), a case only
+ * has to lay out without exceptions or unsupported constructs, with the
+ * struts' height and depth, and with roughly the reference's amount of ink:
+ * Safari's HTML differs from the canvas in ways that are WebKit's (text
+ * baselines are rounded differently in HTML and canvas, fractional rules are
+ * anti-aliased in HTML), so it is no pixel reference there. The gallery
+ * still shows the comparison.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -37,6 +45,8 @@ const MAX_DARKNESS_DEVIATION = 0.08;
 const REGRESSION_SLACK = 0.01;
 // Padding around the formula in each cell, in em.
 const PAD_EM = 1.5;
+const SMOKE = !!process.env.KATEX_CANVAS_SMOKE;
+const SMOKE_DARKNESS = [0.75, 1.35];
 
 const cases = loadVariants();
 const expectations = JSON.parse(readFileSync(EXPECTATIONS_FILE, "utf8"));
@@ -113,7 +123,13 @@ for (const testCase of cases) {
         writeFileSync(join(OUT_DIR, "results", fileName(testCase.id) + ".json"), JSON.stringify(result));
 
         const expected = expectations[testCase.id];
-        if (!expected) {
+        if (SMOKE) {
+            expect(info.unsupported, "unsupported constructs").toEqual([]);
+            expect(Math.abs(info.heightError), "height off").toBeLessThan(1);
+            expect(Math.abs(info.depthError), "depth off").toBeLessThan(1);
+            expect(stats.darkness, "ink compared to the reference").toBeGreaterThan(SMOKE_DARKNESS[0]);
+            expect(stats.darkness, "ink compared to the reference").toBeLessThan(SMOKE_DARKNESS[1]);
+        } else if (!expected) {
             expect(result.status, [`unsupported: [${info.unsupported}]`, ...problems].join("; ")).toBe("pass");
         } else {
             expect(stats.score, `known ${expected.status} case got worse`).toBeLessThanOrEqual(

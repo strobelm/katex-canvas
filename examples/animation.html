@@ -23,7 +23,7 @@
         </p>
         <canvas id="stage" class="panel"></canvas>
         <p class="note" id="stats"></p>
-        <pre><code>const box = await layoutTeX(katex, tex, ctx, { fontSize: 22 });
+        <pre><code>const box = await layoutTeX(katex, ctx, tex, { fontSize: 22 });
 function frame(t) {
     ctx.save();
     ctx.translate(x, y);
@@ -58,18 +58,32 @@ function frame(t) {
                 "\\det(A - \\lambda I) = 0",
                 "\\varphi = \\frac{1+\\sqrt5}{2}",
             ];
-            const boxes = await Promise.all(texts.map((t) => layoutTeX(katex, t, ctx, { fontSize: 22 })));
-            const center = await layoutTeX(katex, "e^{i\\varphi}", ctx, { fontSize: 44 });
+            const boxes = await Promise.all(texts.map((t) => layoutTeX(katex, ctx, t, { fontSize: 22 })));
+            const center = await layoutTeX(katex, ctx, "e^{i\\varphi}", { fontSize: 44 });
 
             let frames = 0;
             let last = performance.now();
+            // Theme colours, read once (getComputedStyle is too slow for every frame).
+            const colors = {
+                ink: themeColor("--ink"),
+                accent: themeColor("--accent"),
+                accent2: themeColor("--accent-2"),
+            };
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+                Object.assign(colors, {
+                    ink: themeColor("--ink"),
+                    accent: themeColor("--accent"),
+                    accent2: themeColor("--accent-2"),
+                });
+            });
+
             function frame(now) {
                 const t = now / 1000;
                 ctx.clearRect(0, 0, width, height);
                 const cx = width / 2;
                 const cy = height / 2;
                 const rx = Math.max(60, Math.min(width / 2 - 120, 330));
-                ctx.fillStyle = themeColor("--accent");
+                ctx.fillStyle = colors.accent;
                 ctx.save();
                 ctx.translate(cx, cy);
                 ctx.rotate(t * 0.6);
@@ -87,7 +101,7 @@ function frame(t) {
                     ctx.rotate(Math.sin(t + i) * 0.15);
                     ctx.scale(depth, depth);
                     ctx.globalAlpha = 0.35 + 0.65 * depth;
-                    ctx.fillStyle = i % 2 ? themeColor("--accent-2") : themeColor("--ink");
+                    ctx.fillStyle = i % 2 ? colors.accent2 : colors.ink;
                     render(ctx, box, 0, 0, { align: "center", baseline: "middle" });
                     ctx.restore();
                 }

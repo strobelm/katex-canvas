@@ -33,7 +33,7 @@
             header("plot.html");
             const canvas = document.getElementById("plot");
             const H = 420;
-            const tex = (t, size = 17) => layoutTeX(katex, t, canvas.getContext("2d"), { fontSize: size });
+            const tex = (t, size = 17) => layoutTeX(katex, canvas.getContext("2d"), t, { fontSize: size });
 
             // Everything is laid out once; drawing only renders.
             const piTicks = [

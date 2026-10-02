@@ -17,12 +17,12 @@ declare const canvas: HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 
 async function main(): Promise<void> {
-    const box: Box = await layoutTeX(katex, "\\frac{a}{b}", ctx, { fontSize: 24, katexOptions: { displayMode: true } });
+    const box: Box = await layoutTeX(katex, ctx, "\\frac{a}{b}", { fontSize: 24, katexOptions: { displayMode: true } });
     render(ctx, box, 10, 10 + box.height);
 
-    let sync = layoutTeXSync(katex, "x^2", ctx, { fontSize: 24 });
+    let sync = layoutTeXSync(katex, ctx, "x^2", { fontSize: 24 });
     if (!fontsLoaded(sync.fonts) && (await loadFonts(sync.fonts))) {
-        sync = layoutTeXSync(katex, "x^2", ctx, { fontSize: 24 });
+        sync = layoutTeXSync(katex, ctx, "x^2", { fontSize: 24 });
     }
     render(ctx, sync, 0, 0, { outline: true });
 

@@ -116,7 +116,7 @@ f(x) = \int_{-\infty}^{\infty} \hat f(\xi)\, e^{2\pi i \xi x} \,d\xi</textarea>
                 const canvas = $("canvas");
                 try {
                     katex.render(tex, html, katexOptions);
-                    box = await layoutTeX(katex, tex, canvas.getContext("2d"), { fontSize, katexOptions });
+                    box = await layoutTeX(katex, canvas.getContext("2d"), tex, { fontSize, katexOptions });
                     $("error").textContent = "";
                 } catch (e) {
                     $("error").textContent = e.message;

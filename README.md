@@ -34,10 +34,14 @@ range (currently `>=0.18.9 <0.20`).
 ### `drawTeX(katex, ctx, tex, x, y, options) → Promise<Box>`
 
 Typesets, lays out and draws in one call, like `fillText`. Takes the options of `layoutTeX` and `render`
-below. To draw the same formula repeatedly (animations, redraws), lay it out once with `layoutTeX` and call
+below. If the formula's fonts are loaded, it is drawn right away; otherwise once they are, with the
+context's state at the call (transform, fill and stroke styles, line settings, alpha, compositing, filter,
+shadow; not the clipping region). Await it before clearing the canvas.
+
+To draw the same formula repeatedly (animations, redraws), lay it out once with `layoutTeX` and call
 `render` each time instead.
 
-### `layoutTeX(katex, tex, ctx, options) → Promise<Box>`
+### `layoutTeX(katex, ctx, tex, options) → Promise<Box>`
 
 Typesets `tex` with the KaTeX module you pass in, loads the fonts the formula needs and lays it out for
 `ctx`. Options:
@@ -72,7 +76,7 @@ Draws a laid-out box at `(x, y)`. Parts without an explicit `\color` use the con
 For draw loops that cannot wait:
 
 ```js
-let box = layoutTeXSync(katex, tex, ctx, { fontSize: 24 });
+let box = layoutTeXSync(katex, ctx, tex, { fontSize: 24 });
 if (!fontsLoaded(box.fonts)) {
     loadFonts(box.fonts).then(requestRedraw); // widths are those of fallback fonts until then
 }
@@ -120,9 +124,14 @@ the images are left out, and sizes given only partly can't be resolved.
   every KaTeX minor version is tested before the supported range is widened. A warning is logged for
   versions outside it.
 - **Browsers**: Chromium is tested pixel by pixel against KaTeX's HTML, and with `OffscreenCanvas` in a
-  worker. In Firefox, canvas text measures slightly wider (about 0.5%) than Firefox's own HTML text, so
-  long formulas can be a pixel or two wider than KaTeX's HTML output there. WebKit runs in CI, without
-  pixel guarantees yet.
+  worker.
+    - **Safari**: every test formula is checked in WebKit on macOS (layout, extent, amount of ink), and the
+      worker test runs there too. Compared to Safari's own HTML rendering of KaTeX, text can sit 1px lower,
+      because WebKit rounds text baselines differently in HTML and on canvases, and rules look crisper,
+      because the canvas snaps them to whole pixels where Safari's HTML anti-aliases fractional widths.
+    - **Firefox**: canvas text measures slightly wider (about 0.5%) than Firefox's own HTML text, so long
+      formulas can be a pixel or two wider than KaTeX's HTML output there. Firefox runs in CI for
+      information.
 - **Node**: `layout` works with any object providing `measureText`; drawing with node canvas
   implementations is not tested yet.
 - Not covered: accessibility (a canvas has no text; consider an `aria-label` or KaTeX's MathML output next

@@ -37,7 +37,7 @@
                 canvas.width = job.width;
                 canvas.height = job.height;
                 const ctx = canvas.getContext("2d");
-                const box = await layoutTeX(katex, tex, ctx, {
+                const box = await layoutTeX(katex, ctx, tex, {
                     fontSize: job.fontSize,
                     pixelRatio: 1,
                     katexOptions: { strict: "ignore" },

@@ -11,7 +11,7 @@ self.onmessage = async ({ data: { tex, fontSize, width, height, x, y } }) => {
     try {
         const canvas = new OffscreenCanvas(width, height);
         const ctx = canvas.getContext("2d");
-        const box = await layoutTeX(katex, tex, ctx, { fontSize, pixelRatio: 1, katexOptions: { strict: "ignore" } });
+        const box = await layoutTeX(katex, ctx, tex, { fontSize, pixelRatio: 1, katexOptions: { strict: "ignore" } });
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = "#000";

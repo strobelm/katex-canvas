@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { assert } from "chai";
 import katex from "katex";
 
@@ -10,6 +12,7 @@ import {
     loadFonts,
     registerKatexFonts,
     render,
+    SUPPORTED_KATEX,
 } from "../../src/index.mjs";
 
 // The convenience layer: font loading, layoutTeX and the KaTeX version check.
@@ -135,39 +138,39 @@ describe("layoutTeX", function () {
 
     it("lays out again once the fonts are loaded", async function () {
         const fontSet = fakeFontSet(["KaTeX_Main", "KaTeX_Math"]);
-        const before = layoutTeXSync(katex, "ab", measureCtx, { fontSize: 20 });
-        const box = await layoutTeX(katex, "ab", measureCtx, { fontSize: 20, fontSet });
+        const before = layoutTeXSync(katex, measureCtx, "ab", { fontSize: 20 });
+        const box = await layoutTeX(katex, measureCtx, "ab", { fontSize: 20, fontSet });
         assert.isAbove(box.width, before.width);
         assert.deepEqual(box.fonts, ["italic normal 20px KaTeX_Math"]);
     });
 
     it("passes KaTeX options through", function () {
-        const box = layoutTeXSync(katex, "\\R", measureCtx, {
+        const box = layoutTeXSync(katex, measureCtx, "\\R", {
             fontSize: 20,
             katexOptions: { macros: { "\\R": "\\mathbb{R}" } },
         });
         assert.deepEqual(box.fonts, ["normal normal 20px KaTeX_AMS"]);
-        assert.throws(() => layoutTeXSync(katex, "\\frac{", measureCtx, { fontSize: 20 }), katex.ParseError);
+        assert.throws(() => layoutTeXSync(katex, measureCtx, "\\frac{", { fontSize: 20 }), katex.ParseError);
     });
 
     it("rejects a missing font size and things that are not KaTeX", function () {
-        assert.throws(() => layoutTeXSync(katex, "x", measureCtx), /fontSize must be a positive number/);
-        assert.throws(() => layoutTeXSync(katex, "x", measureCtx, { fontSize: NaN }), /fontSize/);
+        assert.throws(() => layoutTeXSync(katex, measureCtx, "x"), /fontSize must be a positive number/);
+        assert.throws(() => layoutTeXSync(katex, measureCtx, "x", { fontSize: NaN }), /fontSize/);
         const notKatex = { version: "0.19.0" };
         for (let i = 0; i < 2; ++i) {
-            assert.throws(() => layoutTeXSync(notKatex, "x", measureCtx, { fontSize: 20 }), /pass the KaTeX module/);
+            assert.throws(() => layoutTeXSync(notKatex, measureCtx, "x", { fontSize: 20 }), /pass the KaTeX module/);
         }
     });
 
     it("warns about untested KaTeX versions, once per module", async function () {
         const fake = { version: "0.16.4", __renderToHTMLTree: katex.__renderToHTMLTree };
         const { warnings } = await quietly(() => {
-            layoutTeXSync(fake, "x", measureCtx, { fontSize: 20 });
-            layoutTeXSync(fake, "y", measureCtx, { fontSize: 20 });
+            layoutTeXSync(fake, measureCtx, "x", { fontSize: 20 });
+            layoutTeXSync(fake, measureCtx, "y", { fontSize: 20 });
         });
         assert.lengthOf(warnings, 1);
         assert.match(warnings[0], /KaTeX 0\.16\.4 is outside the tested range/);
-        const current = await quietly(() => layoutTeXSync(katex, "x", measureCtx, { fontSize: 20 }));
+        const current = await quietly(() => layoutTeXSync(katex, measureCtx, "x", { fontSize: 20 }));
         assert.lengthOf(current.warnings, 0);
     });
 });
@@ -217,7 +220,7 @@ describe("colours without CSS.supports", function () {
     }
 
     it("are checked on the context by layoutTeX too", async function () {
-        const box = await layoutTeX(katex, "\\textcolor{bogus}{x}", strictCtx(), {
+        const box = await layoutTeX(katex, strictCtx(), "\\textcolor{bogus}{x}", {
             fontSize: 20,
             fontSet: fakeFontSet(["KaTeX_Math"]),
         });
@@ -229,6 +232,25 @@ describe("colours without CSS.supports", function () {
             }
         })(box.ops);
         assert.deepEqual(texts, [null]);
+    });
+});
+
+describe("package", function () {
+    it("states the supported KaTeX versions in one way", function () {
+        const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+        assert.equal(SUPPORTED_KATEX, pkg.peerDependencies.katex);
+    });
+});
+
+describe("fonts the browser loaded already", function () {
+    it("count as loaded", function () {
+        const fontSet = Object.assign([{ family: '"KaTeX_Main"', status: "loaded" }], {
+            check: () => true,
+            load: () => assert.fail("nothing to load"),
+        });
+        assert.isTrue(fontsLoaded(["normal normal 20px KaTeX_Main"], { fontSet }));
+        // check() is also true for faces that are not defined at all.
+        assert.isFalse(fontsLoaded(["normal normal 20px KaTeX_AMS"], { fontSet: Object.assign([], fontSet) }));
     });
 });
 
@@ -260,6 +282,43 @@ describe("render and drawTeX", function () {
         assert.deepEqual(at({ align: "right", baseline: "bottom" }), [60, 46]);
         assert.deepEqual(at({ baseline: "middle" }), [100, 54]);
         assert.throws(() => at({ align: "middle" }), /unknown align/);
+    });
+
+    it("draws right away when the fonts are loaded", function () {
+        const ctx = recordingCtx();
+        const fontSet = Object.assign([{ family: "KaTeX_Math", status: "loaded" }], { check: () => true });
+        drawTeX(katex, ctx, "x", 10, 20, { fontSize: 20, fontSet });
+        assert.lengthOf(ctx.translations, 1, "drawn synchronously");
+    });
+
+    it("draws later with the context's state at the call", async function () {
+        const ctx = {
+            ...recordingCtx(),
+            transform: "T0",
+            fills: [],
+            getTransform() {
+                return this.transform;
+            },
+            setTransform(t) {
+                this.transform = t;
+            },
+            fillText() {
+                this.fills.push([this.fillStyle, this.transform]);
+            },
+        };
+        ctx.fillStyle = "red";
+        ctx.transform = "T1";
+        const drawn = drawTeX(katex, ctx, "x", 10, 20, { fontSize: 20, fontSet: fakeFontSet(["KaTeX_Math"]) });
+        ctx.fillStyle = "blue";
+        ctx.transform = "T2";
+        await drawn;
+        assert.deepEqual(ctx.fills, [["red", "T1"]]);
+    });
+
+    it("rejects parse errors", async function () {
+        let error = null;
+        await drawTeX(katex, recordingCtx(), "\\frac{", 0, 0, { fontSize: 20 }).catch((e) => (error = e));
+        assert.instanceOf(error, katex.ParseError);
     });
 
     it("draws in one call", async function () {

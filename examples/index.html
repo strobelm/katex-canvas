@@ -106,7 +106,7 @@ await drawTeX(katex, ctx, "\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt\\pi}{2}
                 const width = fitWidth(canvas);
                 const ctx = hidpi(canvas, width, 260);
                 const boxes = await Promise.all(
-                    formulas.map(([tex, size]) => layoutTeX(katex, tex, ctx, { fontSize: size })),
+                    formulas.map(([tex, size]) => layoutTeX(katex, ctx, tex, { fontSize: size })),
                 );
                 const spots = [
                     [0.2, 0.3],

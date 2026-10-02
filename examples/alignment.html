@@ -36,7 +36,7 @@
             const cellW = Math.min(280, Math.floor((fitWidth(canvas) - left) / aligns.length));
             const cellH = 110;
             const ctx = hidpi(canvas, left + aligns.length * cellW, 30 + baselines.length * cellH);
-            const box = await layoutTeX(katex, "\\frac{x^2}{\\sqrt{y}}", ctx, { fontSize: 26 });
+            const box = await layoutTeX(katex, ctx, "\\frac{x^2}{\\sqrt{y}}", { fontSize: 26 });
             ctx.font = "13px system-ui, sans-serif";
             ctx.fillStyle = themeColor("--muted");
             aligns.forEach((a, i) => ctx.fillText(a, left + i * cellW + cellW / 2 - 18, 18));

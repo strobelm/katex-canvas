@@ -94,6 +94,36 @@ function faceOf(font) {
     return font.replace(/ [\d.]+px /, " ");
 }
 
+const unquote = (family) => family.trim().replace(/^["']|["']$/g, "");
+
+/**
+ * Whether the browser has loaded `font` already, e.g. for KaTeX's HTML output
+ * on the same page: `check` is also true when no face matches at all, hence
+ * the look for a loaded face of the family.
+ */
+function loadedByBrowser(fontSet, font) {
+    if (typeof fontSet.check !== "function" || typeof fontSet[Symbol.iterator] !== "function") return false;
+    try {
+        if (!fontSet.check(font)) return false;
+    } catch {
+        return false;
+    }
+    const family = unquote(font.slice(font.indexOf("px ") + 3).split(",")[0]);
+    for (const face of fontSet) if (face.status === "loaded" && unquote(face.family) === family) return true;
+    return false;
+}
+
+/** The state of `font`'s face, noting faces the browser loaded already. */
+function settle(fontSet, faces, font) {
+    const face = faceOf(font);
+    let s = faces.get(face);
+    if ((s === undefined || s === GAVE_UP) && loadedByBrowser(fontSet, font)) {
+        s = LOADED;
+        faces.set(face, s);
+    }
+    return s;
+}
+
 /**
  * Whether `loadFonts` is done with all of `fonts` (a box's `fonts`): each is
  * loaded, or was given up on (it failed to load or is not defined). A
@@ -108,9 +138,17 @@ export function fontsLoaded(fonts, options = {}) {
     if (!fontSet) return true;
     const { faces } = stateOf(fontSet);
     return fonts.every((font) => {
-        const s = faces.get(faceOf(font));
+        const s = settle(fontSet, faces, font);
         return s === LOADED || s === GAVE_UP;
     });
+}
+
+/** Whether all of `fonts` are really loaded (none given up on); internal. */
+export function fontsReady(fonts, options = {}) {
+    const fontSet = options.fontSet || defaultFontSet();
+    if (!fontSet) return true;
+    const { faces } = stateOf(fontSet);
+    return fonts.every((font) => settle(fontSet, faces, font) === LOADED);
 }
 
 /**
@@ -140,6 +178,12 @@ export async function loadFonts(fonts, options = {}) {
             const face = faceOf(font);
             const s = faces.get(face);
             if (s === LOADED) return false;
+            // Loaded meanwhile by the browser: a layout made before may have
+            // used a fallback, so this counts as having become available.
+            if ((s === undefined || s === GAVE_UP) && loadedByBrowser(fontSet, font)) {
+                faces.set(face, LOADED);
+                return true;
+            }
             if (s !== undefined && s !== GAVE_UP) return s;
             const loading = fontSet.load(font).then(
                 (loaded) => {

@@ -21,10 +21,13 @@
         ".": {
             "types": "./src/index.d.ts",
             "default": "./src/index.mjs"
-        }
+        },
+        "./package.json": "./package.json"
     },
+    "types": "./src/index.d.ts",
     "files": [
-        "src"
+        "src",
+        "CHANGELOG.md"
     ],
     "sideEffects": false,
     "peerDependencies": {

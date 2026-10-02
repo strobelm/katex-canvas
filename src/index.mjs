@@ -10,12 +10,12 @@
  *
  * or, to lay out once and draw many times:
  *
- *     const box = await layoutTeX(katex, "\\frac{a}{b}", ctx, { fontSize: 24 });
+ *     const box = await layoutTeX(katex, ctx, "\\frac{a}{b}", { fontSize: 24 });
  *     render(ctx, box, x, baselineY);
  */
 
 import { layout, render } from "./layout.mjs";
-import { loadFonts } from "./fonts.mjs";
+import { fontsReady, loadFonts } from "./fonts.mjs";
 
 export { layout, render } from "./layout.mjs";
 export { fontsLoaded, loadFonts, registerKatexFonts } from "./fonts.mjs";
@@ -51,40 +51,16 @@ function layoutOptions(options) {
     };
 }
 
-/**
- * Typesets `tex` with KaTeX and lays it out for `ctx`, without waiting for
- * fonts: if `fontsLoaded(box.fonts)` is false, the widths are those of
- * fallback fonts; `loadFonts(box.fonts)` and lay out again. Throws KaTeX's
- * ParseError like `katex.render` (unless `katexOptions.throwOnError` is
- * false).
- *
- * @param katex the KaTeX module (`import katex from "katex"`)
- * @param {string} tex
- * @param ctx a 2D canvas context, used for measuring text
- * @param options `fontSize` (CSS pixels per TeX em), `katexOptions` (as for
- *        `katex.render`), and `pixelRatio`, `displayWidth`, `images` as for
- *        `layout`
- */
-export function layoutTeXSync(katex, tex, ctx, options = {}) {
+function treeOf(katex, tex, options) {
     checkVersion(katex);
-    const tree = katex.__renderToHTMLTree(tex, options.katexOptions || {});
-    return layout(tree, ctx, layoutOptions(options));
+    return katex.__renderToHTMLTree(tex, options.katexOptions || {});
 }
 
-/**
- * Like `layoutTeXSync`, but loads the fonts the formula needs first, so the
- * layout is final. `options.fontSet` selects the FontFaceSet to load into
- * (default: `document.fonts`, or `self.fonts` in workers).
- */
-export async function layoutTeX(katex, tex, ctx, options = {}) {
-    checkVersion(katex);
-    const tree = katex.__renderToHTMLTree(tex, options.katexOptions || {});
-    // The fonts are collected by a layout that measures nothing: in
-    // Chromium's workers, a font string measured before its font was loaded
-    // keeps measuring with the fallback font.
-    const { fonts } = layout(tree, NOT_MEASURING, layoutOptions(options));
-    await loadFonts(fonts, { fontSet: options.fontSet });
-    return layout(tree, ctx, layoutOptions(options));
+// The fonts a tree needs, from a layout that measures nothing: in Chromium's
+// workers, a font string measured before its font was loaded keeps
+// measuring with the fallback font, so nothing is measured before loading.
+function fontsOf(tree, options) {
+    return layout(tree, NOT_MEASURING, layoutOptions(options)).fonts;
 }
 
 const NOT_MEASURING = {
@@ -95,13 +71,101 @@ const NOT_MEASURING = {
 };
 
 /**
- * Typesets, lays out and draws `tex` in one go, like `fillText`: at (x, y),
- * anchored by `options.align` and `options.baseline` (see `render`), in the
- * context's fill style. Takes the options of `layoutTeX` and `render`.
- * Resolves to the laid-out box.
+ * Typesets `tex` with KaTeX and lays it out for `ctx`, without waiting for
+ * fonts: if `fontsLoaded(box.fonts)` is false, the widths are those of
+ * fallback fonts; `loadFonts(box.fonts)` and lay out again. Throws KaTeX's
+ * ParseError like `katex.render` (unless `katexOptions.throwOnError` is
+ * false).
+ *
+ * @param katex the KaTeX module (`import katex from "katex"`)
+ * @param ctx a 2D canvas context, used for measuring text
+ * @param {string} tex
+ * @param options `fontSize` (CSS pixels per TeX em), `katexOptions` (as for
+ *        `katex.render`), and `pixelRatio`, `displayWidth`, `images` as for
+ *        `layout`
  */
-export async function drawTeX(katex, ctx, tex, x, y, options = {}) {
-    const box = await layoutTeX(katex, tex, ctx, options);
-    render(ctx, box, x, y, options);
-    return box;
+export function layoutTeXSync(katex, ctx, tex, options = {}) {
+    return layout(treeOf(katex, tex, options), ctx, layoutOptions(options));
+}
+
+/**
+ * Like `layoutTeXSync`, but loads the fonts the formula needs first, so the
+ * layout is final. `options.fontSet` selects the FontFaceSet to load into
+ * (default: `document.fonts`, or `self.fonts` in workers).
+ */
+export async function layoutTeX(katex, ctx, tex, options = {}) {
+    const tree = treeOf(katex, tex, options);
+    await loadFonts(fontsOf(tree, options), { fontSet: options.fontSet });
+    return layout(tree, ctx, layoutOptions(options));
+}
+
+/**
+ * Typesets, lays out and draws `tex` like `fillText`: at (x, y), anchored by
+ * `options.align` and `options.baseline` (see `render`), in the context's
+ * fill style. Takes the options of `layoutTeX` and `render`, and resolves to
+ * the laid-out box.
+ *
+ * If the fonts are loaded, the formula is drawn right away. Otherwise it is
+ * drawn once they are, with the transform, styles, line settings, alpha,
+ * compositing, filter and shadow the context had at the call (not its
+ * clipping region); await the result before clearing the canvas.
+ */
+export function drawTeX(katex, ctx, tex, x, y, options = {}) {
+    let tree;
+    let fonts;
+    try {
+        tree = treeOf(katex, tex, options);
+        fonts = fontsOf(tree, options);
+    } catch (e) {
+        return Promise.reject(e);
+    }
+    const draw = () => {
+        const box = layout(tree, ctx, layoutOptions(options));
+        render(ctx, box, x, y, options);
+        return box;
+    };
+    if (fontsReady(fonts, { fontSet: options.fontSet })) {
+        try {
+            return Promise.resolve(draw());
+        } catch (e) {
+            return Promise.reject(e);
+        }
+    }
+    const state = saveState(ctx);
+    return loadFonts(fonts, { fontSet: options.fontSet }).then(() => {
+        ctx.save();
+        try {
+            restoreState(ctx, state);
+            return draw();
+        } finally {
+            ctx.restore();
+        }
+    });
+}
+
+const STATE = [
+    "fillStyle",
+    "strokeStyle",
+    "lineWidth",
+    "lineJoin",
+    "lineCap",
+    "miterLimit",
+    "globalAlpha",
+    "globalCompositeOperation",
+    "filter",
+    "shadowColor",
+    "shadowBlur",
+    "shadowOffsetX",
+    "shadowOffsetY",
+];
+
+function saveState(ctx) {
+    const state = { transform: ctx.getTransform() };
+    for (const k of STATE) if (k in ctx) state[k] = ctx[k];
+    return state;
+}
+
+function restoreState(ctx, state) {
+    ctx.setTransform(state.transform);
+    for (const k of STATE) if (k in state) ctx[k] = state[k];
 }
