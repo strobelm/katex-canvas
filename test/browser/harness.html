@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>KaTeX canvas comparison</title>
+        <link rel="stylesheet" href="../../node_modules/katex/dist/katex.min.css" />
+        <script type="importmap">
+            { "imports": { "katex": "../../node_modules/katex/dist/katex.mjs" } }
+        </script>
+        <style>
+            html,
+            body {
+                margin: 0;
+                background: #fff;
+            }
+            #stage {
+                position: absolute;
+                left: 0;
+                top: 0;
+                display: flex;
+                background: #fff;
+            }
+            .cell {
+                position: relative;
+                overflow: hidden;
+                background: #fff;
+                flex: none;
+            }
+            #host {
+                position: absolute;
+                white-space: nowrap;
+                color: #000;
+            }
+            #host .katex-display {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="stage">
+            <div class="cell" id="htmlCell"><span id="host"></span></div>
+            <div class="cell" id="canvasCell"><canvas id="canvas"></canvas></div>
+        </div>
+        <script type="module" src="harness.mjs"></script>
+    </body>
+</html>

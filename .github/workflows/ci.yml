@@ -1,0 +1,54 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+jobs:
+    test:
+        name: KaTeX ${{ matrix.katex }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                # The ends of the supported range (package.json peerDependencies).
+                katex: ["0.18.9", "0.19.0"]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            - run: npm ci
+            - run: npm install --no-save katex@${{ matrix.katex }}
+            # KaTeX's screenshot cases of exactly that version.
+            - run: npm run corpus
+            - run: npm test
+            - run: npm run test:types
+            - run: npx prettier --check .
+            - run: npx playwright install --with-deps chromium
+            - run: npm run test:browser
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: report-katex-${{ matrix.katex }}
+                  path: report/
+
+    engines:
+        name: Firefox and WebKit (informational)
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            - run: npm ci
+            - run: npx playwright install --with-deps firefox webkit
+            - run: npm run test:engines
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: report-engines
+                  path: report/

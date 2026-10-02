@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>katex-canvas in a worker</title>
+        <link rel="stylesheet" href="../../node_modules/katex/dist/katex.min.css" />
+        <script type="importmap">
+            { "imports": { "katex": "../../node_modules/katex/dist/katex.mjs" } }
+        </script>
+    </head>
+    <body>
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "../../src/index.mjs";
+
+            const worker = new Worker("worker.mjs", { type: "module" });
+            let pending = null;
+            worker.onmessage = ({ data }) => pending(data);
+            const inWorker = (job) => new Promise((resolve) => ((pending = resolve), worker.postMessage(job)));
+
+            function pixels(source, width, height) {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(source, 0, 0);
+                return ctx.getImageData(0, 0, width, height).data;
+            }
+
+            // The formula drawn in the worker and on the main thread (fonts
+            // from katex.css); returns the number of differing pixels.
+            window.compareWithWorker = async (tex) => {
+                const job = { tex, fontSize: 30, width: 600, height: 200, x: 20, y: 120 };
+                const result = await inWorker(job);
+                if (result.error) throw new Error(result.error);
+                const canvas = document.createElement("canvas");
+                canvas.width = job.width;
+                canvas.height = job.height;
+                const ctx = canvas.getContext("2d");
+                const box = await layoutTeX(katex, tex, ctx, {
+                    fontSize: job.fontSize,
+                    pixelRatio: 1,
+                    katexOptions: { strict: "ignore" },
+                });
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(0, 0, job.width, job.height);
+                ctx.fillStyle = "#000";
+                render(ctx, box, job.x, job.y);
+                const a = pixels(canvas, job.width, job.height);
+                const b = pixels(result.bitmap, job.width, job.height);
+                let differing = 0;
+                let ink = 0;
+                for (let i = 0; i < a.length; i += 4) {
+                    if (a[i] < 128) ++ink;
+                    if (
+                        Math.abs(a[i] - b[i]) > 8 ||
+                        Math.abs(a[i + 1] - b[i + 1]) > 8 ||
+                        Math.abs(a[i + 2] - b[i + 2]) > 8
+                    )
+                        ++differing;
+                }
+                return { differing, ink, width: box.width, workerWidth: result.width };
+            };
+        </script>
+    </body>
+</html>

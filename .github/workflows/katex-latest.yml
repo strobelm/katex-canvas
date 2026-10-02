@@ -1,0 +1,45 @@
+name: Latest KaTeX
+
+# Early warning for KaTeX releases: the backend depends on KaTeX's internal
+# HTML tree and CSS, so a new release can break it.
+on:
+    schedule:
+        - cron: "17 5 * * 1"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            - run: npm ci
+            - run: npm install --no-save katex@latest
+            - id: version
+              run: echo "katex=$(node -p 'require("katex/package.json").version')" >> "$GITHUB_OUTPUT"
+            - run: npm run corpus
+            - run: npm test
+            - run: npx playwright install --with-deps chromium
+            - run: npm run test:browser
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: report-katex-latest
+                  path: report/
+            - name: Open an issue
+              if: failure()
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  KATEX: ${{ steps.version.outputs.katex }}
+              run: |
+                  title="Tests fail with KaTeX $KATEX"
+                  if ! gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number' | grep -q .; then
+                      gh issue create --title "$title" --body "See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  fi

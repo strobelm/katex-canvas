@@ -1,0 +1,3 @@
+report/
+node_modules/
+test/corpus/katex-screenshotter*.json

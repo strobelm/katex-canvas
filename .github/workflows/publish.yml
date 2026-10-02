@@ -1,0 +1,29 @@
+name: Publish
+
+# Publishes to npm when a version tag (v1.2.3) is pushed. Uses npm's trusted
+# publishing (configure the package on npmjs.com for this workflow), which
+# also attaches provenance.
+on:
+    push:
+        tags: ["v*"]
+
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  registry-url: https://registry.npmjs.org
+            - run: npm install -g npm@latest
+            - run: npm ci
+            - run: npm test
+            - run: npm run test:types
+            - name: Tag matches package.json
+              run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+            - run: npm publish
