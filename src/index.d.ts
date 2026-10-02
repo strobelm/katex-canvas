@@ -108,7 +108,7 @@ export function drawTeX(
     options: TeXOptions & RenderOptions,
 ): Promise<Box>;
 
-/** Whether all of `fonts` have been loaded by `loadFonts`. */
+/** Whether `loadFonts` is done with all of `fonts`: loaded, or given up on (failed or undefined). */
 export function fontsLoaded(fonts: readonly string[], options?: FontOptions): boolean;
 
 /** Loads `fonts`; resolves to true if a layout made before needs to be redone. */

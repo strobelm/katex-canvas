@@ -79,8 +79,9 @@ if (!fontsLoaded(box.fonts)) {
 render(ctx, box, x, y);
 ```
 
-`loadFonts(fonts)` resolves to `true` if it loaded anything new. A face that fails to load is not waited for
-again (a warning is logged, text falls back to other fonts).
+`loadFonts(fonts)` resolves to `true` if it loaded anything new. A face that fails to load, or isn't defined
+(no `katex.css` or `registerKatexFonts` yet), is given up on with a warning, and text falls back to other
+fonts, so define the fonts before the first `loadFonts`.
 
 ### Low level: `layout(tree, ctx, options)`
 

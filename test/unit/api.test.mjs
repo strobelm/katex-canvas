@@ -80,15 +80,16 @@ describe("font loading", function () {
         assert.match(warnings[0], /KaTeX_AMS could not be loaded/);
     });
 
-    it("retries faces that are not defined", async function () {
+    it("gives up on faces that are not defined, with a warning", async function () {
         const fontSet = fakeFontSet([]);
         const fonts = ["normal normal 20px KaTeX_Script"];
         const { result, warnings } = await quietly(() => loadFonts(fonts, { fontSet }));
+        // Nothing to lay out again for, but nothing to wait for either.
         assert.isFalse(result);
-        assert.isFalse(fontsLoaded(fonts, { fontSet }));
+        assert.isTrue(fontsLoaded(fonts, { fontSet }));
         assert.match(warnings[0], /KaTeX_Script is not defined/);
-        await quietly(() => loadFonts(fonts, { fontSet }));
-        assert.lengthOf(fontSet.loads, 2);
+        await loadFonts(fonts, { fontSet });
+        assert.lengthOf(fontSet.loads, 1);
     });
 
     it("registers KaTeX's faces", function () {

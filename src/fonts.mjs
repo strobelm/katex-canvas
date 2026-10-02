@@ -85,7 +85,8 @@ function faceOf(font) {
 }
 
 /**
- * Whether all of `fonts` (a box's `fonts`) have been loaded by `loadFonts`.
+ * Whether `loadFonts` is done with all of `fonts` (a box's `fonts`): they
+ * are loaded, or given up on.
  *
  * @param {string[]} fonts
  * @param {{fontSet?: FontFaceSet}} [options]
@@ -100,10 +101,10 @@ export function fontsLoaded(fonts, options = {}) {
 /**
  * Loads `fonts` (a box's `fonts`). Resolves to true if any of them was not
  * loaded before, i.e. if a layout made before needs to be redone. A face
- * that fails to load counts as loaded, so that formulas are then drawn in a
- * fallback font rather than waited for forever; a face that is not defined
- * at all (no `katex.css`, no `registerKatexFonts`) is tried again next time.
- * Both cases are reported once with console.warn.
+ * that fails to load, or is not defined at all (no `katex.css`, no
+ * `registerKatexFonts` yet), is given up on with a warning: it counts as
+ * loaded, and formulas use a fallback font instead of waiting forever. So
+ * define the fonts before the first `loadFonts`.
  *
  * @param {string[]} fonts
  * @param {{fontSet?: FontFaceSet}} [options]
@@ -131,8 +132,8 @@ export async function loadFonts(fonts, options = {}) {
                             state.set(face, true);
                             return true;
                         }
-                        state.delete(face);
-                        warn(face, "is not defined (load katex.css or call registerKatexFonts)");
+                        state.set(face, true);
+                        warn(face, "is not defined (load katex.css or call registerKatexFonts first)");
                         return false;
                     },
                     (e) => {
