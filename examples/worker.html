@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>Worker · katex-canvas</title>
+    </head>
+    <body>
+        <h1>Worker</h1>
+        <p class="lead">
+            The canvas is handed to a web worker with <code>transferControlToOffscreen</code>. The worker has no DOM and
+            no stylesheet: it registers KaTeX's fonts with <code>registerKatexFonts</code> and draws with
+            <code>drawTeX</code>. The main thread stays free, try typing while it redraws.
+        </p>
+        <canvas id="canvas" class="panel"></canvas>
+        <p>
+            <label
+                >formula <input id="tex" value="\Gamma(z) = \int_0^\infty t^{z-1} e^{-t}\,dt" style="width: 100%"
+            /></label>
+        </p>
+        <pre><code>// worker
+import katex from "katex";
+import { drawTeX, registerKatexFonts } from "katex-canvas";
+
+registerKatexFonts("https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/fonts/");
+self.onmessage = async ({ data }) => {
+    if (data.canvas) ctx = data.canvas.getContext("2d");
+    ...
+    await drawTeX(katex, ctx, data.tex, width / 2, height / 2, { fontSize: 30, align: "center", baseline: "middle" });
+};</code></pre>
+        <p class="note" id="status"></p>
+        <script type="module">
+            import { fitWidth, header, themeColor } from "./common.mjs";
+
+            header("worker.html");
+            const canvas = document.getElementById("canvas");
+            const status = document.getElementById("status");
+            if (!canvas.transferControlToOffscreen) {
+                status.textContent = "This browser cannot hand canvases to workers (no OffscreenCanvas).";
+            } else {
+                const width = fitWidth(canvas);
+                const height = 200;
+                const ratio = window.devicePixelRatio || 1;
+                canvas.width = width * ratio;
+                canvas.height = height * ratio;
+                canvas.style.width = width + "px";
+                canvas.style.height = height + "px";
+                const offscreen = canvas.transferControlToOffscreen();
+                // Module workers cannot use the page's import map, so this
+                // one imports by URL; see worker-example.mjs.
+                const worker = new Worker("worker-example.mjs", { type: "module" });
+                worker.onmessage = ({ data }) => {
+                    status.textContent = data.error ? data.error : `drawn in the worker in ${data.ms.toFixed(1)} ms`;
+                };
+                const colors = { ink: themeColor("--ink"), accent: themeColor("--accent") };
+                worker.postMessage({ canvas: offscreen, width, height, ratio, colors }, [offscreen]);
+                const input = document.getElementById("tex");
+                const send = () => worker.postMessage({ tex: input.value });
+                input.addEventListener("input", send);
+                send();
+            }
+        </script>
+    </body>
+</html>

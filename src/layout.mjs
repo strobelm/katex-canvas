@@ -1174,22 +1174,28 @@ export function layout(tree, ctx, options) {
 }
 
 /**
- * Draws a laid-out box with its baseline starting at (x, y). Ops without an
- * explicit color use the context's current fill style.
+ * Draws a laid-out box at (x, y), by default the left end of its baseline.
+ * Ops without an explicit color use the context's current fill style.
  *
  * @param options.images maps the URLs in `box.images` to loaded images;
  *        missing ones are skipped
  * @param options.outline stroke everything with the context's stroke style
  *        and line width before filling
+ * @param options.align which point of the box x refers to, as the canvas'
+ *        textAlign: "left" (default), "center" or "right"
+ * @param options.baseline which point of the box y refers to, as the
+ *        canvas' textBaseline: "alphabetic" (default, the baseline), "top",
+ *        "middle" or "bottom"
  */
 export function render(ctx, box, x, y, options) {
     const images = (options && options.images) || {};
+    const [dx, dy] = anchor(box, options || {});
     ctx.save();
     try {
         const fill = ctx.fillStyle;
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
-        ctx.translate(x, y);
+        ctx.translate(x - dx, y - dy);
         // Outlines go below the whole formula: everything is stroked with the
         // context's stroke style and width first, then filled.
         if (options && options.outline) drawOps(ctx, box.ops, fill, images, true);
@@ -1197,6 +1203,15 @@ export function render(ctx, box, x, y, options) {
     } finally {
         ctx.restore();
     }
+}
+
+/** Offset of the anchor point given by `align` and `baseline` from the baseline's left end. */
+function anchor(box, { align = "left", baseline = "alphabetic" }) {
+    const dx = { left: 0, center: box.width / 2, right: box.width }[align];
+    const dy = { alphabetic: 0, top: -box.height, middle: (box.depth - box.height) / 2, bottom: box.depth }[baseline];
+    if (dx === undefined) throw new Error(`render: unknown align ${align}`);
+    if (dy === undefined) throw new Error(`render: unknown baseline ${baseline}`);
+    return [dx, dy];
 }
 
 const path2Ds = new Map();

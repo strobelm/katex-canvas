@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>Alignment · katex-canvas</title>
+    </head>
+    <body>
+        <h1>Alignment</h1>
+        <p class="lead">
+            <code>render</code> and <code>drawTeX</code> take <code>align</code> and <code>baseline</code> like the
+            canvas' <code>textAlign</code> and <code>textBaseline</code>. Each dot is the point passed as (x, y).
+        </p>
+        <canvas id="grid" class="panel"></canvas>
+        <pre><code>render(ctx, box, x, y, { align: "center", baseline: "middle" });</code></pre>
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "katex-canvas";
+            import { fitWidth, header, hidpi, themeColor } from "./common.mjs";
+
+            header("alignment.html");
+            const aligns = ["left", "center", "right"];
+            const baselines = ["top", "middle", "alphabetic", "bottom"];
+            const canvas = document.getElementById("grid");
+            const left = 80;
+            const cellW = Math.min(280, Math.floor((fitWidth(canvas) - left) / aligns.length));
+            const cellH = 110;
+            const ctx = hidpi(canvas, left + aligns.length * cellW, 30 + baselines.length * cellH);
+            const box = await layoutTeX(katex, "\\frac{x^2}{\\sqrt{y}}", ctx, { fontSize: 26 });
+            ctx.font = "13px system-ui, sans-serif";
+            ctx.fillStyle = themeColor("--muted");
+            aligns.forEach((a, i) => ctx.fillText(a, left + i * cellW + cellW / 2 - 18, 18));
+            baselines.forEach((b, j) => ctx.fillText(b, 8, 30 + j * cellH + cellH / 2 + 4));
+            for (const [i, align] of aligns.entries()) {
+                for (const [j, baseline] of baselines.entries()) {
+                    const x = left + i * cellW + cellW / 2;
+                    const y = 30 + j * cellH + cellH / 2;
+                    ctx.strokeStyle = themeColor("--line");
+                    ctx.beginPath();
+                    ctx.moveTo(x - cellW / 2 + 12, y + 0.5);
+                    ctx.lineTo(x + cellW / 2 - 12, y + 0.5);
+                    ctx.moveTo(x + 0.5, y - 45);
+                    ctx.lineTo(x + 0.5, y + 45);
+                    ctx.stroke();
+                    ctx.fillStyle = themeColor("--ink");
+                    render(ctx, box, x, y, { align, baseline });
+                    ctx.fillStyle = themeColor("--accent");
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        </script>
+    </body>
+</html>

@@ -4,13 +4,17 @@
  * katex-canvas: draws KaTeX formulas on a 2D canvas.
  *
  *     import katex from "katex";
- *     import { layoutTeX, render } from "katex-canvas";
+ *     import { drawTeX, layoutTeX, render } from "katex-canvas";
+ *
+ *     await drawTeX(katex, ctx, "\\frac{a}{b}", x, y, { fontSize: 24, align: "center" });
+ *
+ * or, to lay out once and draw many times:
  *
  *     const box = await layoutTeX(katex, "\\frac{a}{b}", ctx, { fontSize: 24 });
  *     render(ctx, box, x, baselineY);
  */
 
-import { layout } from "./layout.mjs";
+import { layout, render } from "./layout.mjs";
 import { loadFonts } from "./fonts.mjs";
 
 export { layout, render } from "./layout.mjs";
@@ -89,3 +93,15 @@ const NOT_MEASURING = {
     restore() {},
     measureText: (text) => ({ width: text.length }),
 };
+
+/**
+ * Typesets, lays out and draws `tex` in one go, like `fillText`: at (x, y),
+ * anchored by `options.align` and `options.baseline` (see `render`), in the
+ * context's fill style. Takes the options of `layoutTeX` and `render`.
+ * Resolves to the laid-out box.
+ */
+export async function drawTeX(katex, ctx, tex, x, y, options) {
+    const box = await layoutTeX(katex, tex, ctx, options);
+    render(ctx, box, x, y, options);
+    return box;
+}

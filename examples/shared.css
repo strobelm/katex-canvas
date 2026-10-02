@@ -1,0 +1,134 @@
+:root {
+    --bg: #fbfaf7;
+    --panel: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #6b6b70;
+    --line: #e4e1da;
+    --accent: #b4441c;
+    --accent-2: #1f5f8b;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #16161a;
+        --panel: #1e1e23;
+        --ink: #ececef;
+        --muted: #9a9aa3;
+        --line: #33333b;
+        --accent: #f08a5d;
+        --accent-2: #74b3e0;
+        color-scheme: dark;
+    }
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font:
+        16px/1.55 system-ui,
+        -apple-system,
+        "Segoe UI",
+        sans-serif;
+}
+main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+}
+header.top {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+}
+header.top a.home {
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+header.top nav {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+a {
+    color: var(--accent-2);
+}
+h1 {
+    font-size: 28px;
+    line-height: 1.2;
+    margin: 0 0 8px;
+}
+p.lead {
+    color: var(--muted);
+    margin: 0 0 24px;
+    max-width: 70ch;
+}
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+}
+canvas {
+    display: block;
+}
+/* A border or padding would make the browser scale the canvas' bitmap. */
+canvas.panel {
+    padding: 0;
+    border: none;
+    box-shadow: 0 0 0 1px var(--line);
+}
+code,
+pre,
+textarea {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13.5px;
+}
+pre {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+}
+.note {
+    color: var(--muted);
+    font-size: 13px;
+}
+footer {
+    margin-top: 48px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+label {
+    font-size: 14px;
+    color: var(--muted);
+}
+input,
+select,
+textarea,
+button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+button {
+    cursor: pointer;
+}
+button:hover {
+    border-color: var(--accent-2);
+}

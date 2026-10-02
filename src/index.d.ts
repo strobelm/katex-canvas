@@ -66,6 +66,10 @@ export interface RenderOptions {
     images?: Images;
     /** Stroke everything with the context's stroke style and line width before filling. */
     outline?: boolean;
+    /** Which point of the box x refers to, as the canvas' `textAlign`. Default "left". */
+    align?: "left" | "center" | "right";
+    /** Which point of the box y refers to, as the canvas' `textBaseline`. Default "alphabetic" (the baseline). */
+    baseline?: "alphabetic" | "top" | "middle" | "bottom";
 }
 
 export interface TeXOptions extends LayoutOptions {
@@ -85,7 +89,7 @@ export const SUPPORTED_KATEX: string;
 /** Lays out a tree from `katex.__renderToHTMLTree`. */
 export function layout(tree: HtmlTree, ctx: MeasuringContext, options: LayoutOptions): Box;
 
-/** Draws a box with its baseline starting at (x, y), in the context's current fill style. */
+/** Draws a box at (x, y), by default the left end of its baseline, in the context's current fill style. */
 export function render(ctx: DrawingContext, box: Box, x: number, y: number, options?: RenderOptions): void;
 
 /** Typesets and lays out `tex` without waiting for fonts (see `fontsLoaded`). Throws KaTeX's ParseError. */
@@ -93,6 +97,16 @@ export function layoutTeXSync(katex: KatexLike, tex: string, ctx: MeasuringConte
 
 /** Typesets and lays out `tex`, loading the fonts it needs first. */
 export function layoutTeX(katex: KatexLike, tex: string, ctx: MeasuringContext, options: TeXOptions): Promise<Box>;
+
+/** Typesets, lays out and draws `tex` at (x, y) like `fillText`; resolves to the box. */
+export function drawTeX(
+    katex: KatexLike,
+    ctx: DrawingContext,
+    tex: string,
+    x: number,
+    y: number,
+    options: TeXOptions & RenderOptions,
+): Promise<Box>;
 
 /** Whether all of `fonts` have been loaded by `loadFonts`. */
 export function fontsLoaded(fonts: readonly string[], options?: FontOptions): boolean;

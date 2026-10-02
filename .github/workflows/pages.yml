@@ -1,0 +1,50 @@
+name: Pages
+
+# Publishes the examples and the comparison gallery to GitHub Pages:
+# /examples/ (importing the package from /src/) and /report/.
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: pages
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            - run: npm ci
+            - run: npx playwright install --with-deps chromium
+            # The gallery is a by-product of the comparison suite.
+            - run: npm run test:browser
+            - name: Assemble the site
+              run: |
+                  mkdir -p _site
+                  cp -r examples src report _site/
+                  rm -rf _site/report/results
+                  printf '<!DOCTYPE html><meta http-equiv="refresh" content="0; url=examples/">\n' > _site/index.html
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: _site
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v4

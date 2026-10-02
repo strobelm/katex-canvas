@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>Plot labels · katex-canvas</title>
+    </head>
+    <body>
+        <h1>Plot labels</h1>
+        <p class="lead">
+            A function plot drawn entirely on one canvas: tick labels in multiples of π and labels that follow the
+            curves, rotated along them and outlined against the grid. Move the slider to change the phase.
+        </p>
+        <div class="panel">
+            <canvas id="plot"></canvas>
+            <label>phase <input id="phase" type="range" min="0" max="628" value="0" style="width: 240px" /></label>
+        </div>
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "katex-canvas";
+            import { fitWidth, header, hidpi, themeColor } from "./common.mjs";
+
+            header("plot.html");
+            const canvas = document.getElementById("plot");
+            const H = 420;
+            const tex = (t, size = 17) => layoutTeX(katex, t, canvas.getContext("2d"), { fontSize: size });
+
+            // Everything is laid out once; drawing only renders.
+            const piTicks = [
+                "-2\\pi",
+                "-\\tfrac{3\\pi}{2}",
+                "-\\pi",
+                "-\\tfrac{\\pi}{2}",
+                "0",
+                "\\tfrac{\\pi}{2}",
+                "\\pi",
+                "\\tfrac{3\\pi}{2}",
+                "2\\pi",
+            ];
+            const xTicks = await Promise.all(piTicks.map((t) => tex(t, 15)));
+            const yTicks = await Promise.all(["-1", "-\\tfrac12", "\\tfrac12", "1"].map((t) => tex(t, 15)));
+            const labels = {
+                sin: await tex("\\sin(x+\\varphi)"),
+                cos: await tex("\\tfrac12\\cos 2x"),
+                gauss: await tex("e^{-x^2/2}"),
+            };
+            const axisX = await tex("x", 18);
+            const axisY = await tex("y", 18);
+            const phaseLabel = (p) => tex(`\\varphi = ${(p / Math.PI).toFixed(2)}\\,\\pi`, 16);
+
+            const curves = [
+                // `at`: where the label goes, a place where the curve is flat.
+                {
+                    f: (x, p) => Math.sin(x + p),
+                    label: labels.sin,
+                    color: "--accent-2",
+                    at: (p) => wrap(Math.PI / 2 - p),
+                },
+                { f: (x) => 0.5 * Math.cos(2 * x), label: labels.cos, color: "--accent", at: () => -Math.PI },
+                { f: (x) => Math.exp((-x * x) / 2), label: labels.gauss, color: "--ink", at: () => 0.75 },
+            ];
+
+            // A maximum of sin in [-3π/2, 3π/2], away from the edges.
+            const wrap = (x) => ((((x + 1.5 * Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - 1.5 * Math.PI;
+
+            async function draw() {
+                const phase = +document.getElementById("phase").value / 100;
+                const W = fitWidth(canvas);
+                const ctx = hidpi(canvas, W, H);
+                const pad = 50;
+                const sx = (x) => pad + ((x + 2 * Math.PI) / (4 * Math.PI)) * (W - 2 * pad);
+                const sy = (y) => H / 2 - y * (H / 2 - 40);
+
+                ctx.strokeStyle = themeColor("--line");
+                ctx.lineWidth = 1;
+                ctx.fillStyle = themeColor("--muted");
+                xTicks.forEach((box, i) => {
+                    const x = sx(((i - 4) * Math.PI) / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(Math.round(x) + 0.5, 30);
+                    ctx.lineTo(Math.round(x) + 0.5, H - 30);
+                    ctx.stroke();
+                    if (i !== 4) render(ctx, box, x, sy(0) + 8, { align: "center", baseline: "top" });
+                });
+                [-1, -0.5, 0.5, 1].forEach((y, i) => {
+                    ctx.beginPath();
+                    ctx.moveTo(pad, Math.round(sy(y)) + 0.5);
+                    ctx.lineTo(W - pad, Math.round(sy(y)) + 0.5);
+                    ctx.stroke();
+                    render(ctx, yTicks[i], sx(0) - 8, sy(y), { align: "right", baseline: "middle" });
+                });
+                ctx.strokeStyle = themeColor("--muted");
+                ctx.beginPath();
+                ctx.moveTo(pad - 10, sy(0));
+                ctx.lineTo(W - pad + 10, sy(0));
+                ctx.moveTo(sx(0), H - 20);
+                ctx.lineTo(sx(0), 20);
+                ctx.stroke();
+                ctx.fillStyle = themeColor("--ink");
+                render(ctx, axisX, W - pad + 14, sy(0), { baseline: "middle" });
+                render(ctx, axisY, sx(0) + 8, 22, { baseline: "top" });
+
+                for (const c of curves) {
+                    ctx.strokeStyle = themeColor(c.color);
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let px = pad; px <= W - pad; px += 2) {
+                        const x = ((px - pad) / (W - 2 * pad)) * 4 * Math.PI - 2 * Math.PI;
+                        const y = sy(c.f(x, phase));
+                        px === pad ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+                    }
+                    ctx.stroke();
+                    // The label sits on the curve, turned along it (but never steeply).
+                    const x = c.at(phase);
+                    const h = 1e-3;
+                    const slope = Math.atan2(sy(c.f(x + h, phase)) - sy(c.f(x - h, phase)), sx(x + h) - sx(x - h));
+                    ctx.save();
+                    ctx.translate(sx(x), sy(c.f(x, phase)));
+                    ctx.rotate(Math.max(-0.4, Math.min(0.4, slope)));
+                    ctx.fillStyle = themeColor(c.color);
+                    ctx.strokeStyle = themeColor("--panel");
+                    ctx.lineWidth = 5;
+                    ctx.lineJoin = "round";
+                    render(ctx, c.label, 0, -8, { align: "center", outline: true });
+                    ctx.restore();
+                }
+
+                ctx.fillStyle = themeColor("--muted");
+                render(ctx, await phaseLabel(phase), W - pad, 30, { align: "right", baseline: "top" });
+            }
+            document.getElementById("phase").addEventListener("input", draw);
+            addEventListener("resize", draw);
+            draw();
+        </script>
+    </body>
+</html>

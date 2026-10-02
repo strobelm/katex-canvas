@@ -1,7 +1,16 @@
 import { assert } from "chai";
 import katex from "katex";
 
-import { fontsLoaded, layout, layoutTeX, layoutTeXSync, loadFonts, registerKatexFonts } from "../../src/index.mjs";
+import {
+    drawTeX,
+    fontsLoaded,
+    layout,
+    layoutTeX,
+    layoutTeXSync,
+    loadFonts,
+    registerKatexFonts,
+    render,
+} from "../../src/index.mjs";
 
 // The convenience layer: font loading, layoutTeX and the KaTeX version check.
 
@@ -169,5 +178,47 @@ describe("colours", function () {
             ["a", "red"],
             ["b", "red"],
         ]);
+    });
+});
+
+describe("render and drawTeX", function () {
+    function recordingCtx() {
+        return {
+            ...measureCtx,
+            fillStyle: "#000000",
+            translations: [],
+            getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+            setTransform() {},
+            translate(x, y) {
+                this.translations.push([x, y]);
+            },
+            fillText() {},
+            fillRect() {},
+        };
+    }
+
+    it("anchors the box like fillText", function () {
+        const box = { width: 40, height: 12, depth: 4, ops: [] };
+        const at = (options) => {
+            const ctx = recordingCtx();
+            render(ctx, box, 100, 50, options);
+            return ctx.translations[0];
+        };
+        assert.deepEqual(at(), [100, 50]);
+        assert.deepEqual(at({ align: "center", baseline: "top" }), [80, 62]);
+        assert.deepEqual(at({ align: "right", baseline: "bottom" }), [60, 46]);
+        assert.deepEqual(at({ baseline: "middle" }), [100, 54]);
+        assert.throws(() => at({ align: "middle" }), /unknown align/);
+    });
+
+    it("draws in one call", async function () {
+        const ctx = recordingCtx();
+        const box = await drawTeX(katex, ctx, "x", 10, 20, {
+            fontSize: 20,
+            align: "right",
+            fontSet: fakeFontSet(["KaTeX_Math"]),
+        });
+        assert.isAbove(box.width, 0);
+        assert.deepEqual(ctx.translations[0], [10 - box.width, 20]);
     });
 });

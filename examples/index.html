@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>katex-canvas</title>
+        <style>
+            #hero {
+                margin-bottom: 24px;
+            }
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                gap: 12px;
+                margin: 24px 0;
+            }
+            .cards a {
+                display: block;
+                text-decoration: none;
+                color: var(--ink);
+            }
+            .cards a:hover {
+                border-color: var(--accent-2);
+            }
+            .cards b {
+                display: block;
+                margin-bottom: 4px;
+            }
+            .cards span {
+                color: var(--muted);
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>KaTeX formulas, drawn on a canvas</h1>
+        <p class="lead">
+            katex-canvas lays out KaTeX's output and draws it with the 2D canvas API: vector glyphs and paths that
+            follow the context's transform, in workers too. The layout reproduces KaTeX's HTML rendering; in Chromium it
+            is checked pixel by pixel against it for several hundred formulas.
+        </p>
+        <canvas id="hero" class="panel"></canvas>
+
+        <pre><code>npm install katex-canvas katex</code></pre>
+        <pre><code>import katex from "katex";
+import { drawTeX } from "katex-canvas";
+import "katex/dist/katex.css"; // KaTeX's fonts
+
+const ctx = canvas.getContext("2d");
+await drawTeX(katex, ctx, "\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt\\pi}{2}", 200, 100, {
+    fontSize: 28,
+    align: "center",
+});</code></pre>
+
+        <div class="cards">
+            <a class="panel" href="playground.html"
+                ><b>Playground</b
+                ><span>Type TeX and compare the canvas with KaTeX's HTML; rotate, colour, export a PNG.</span></a
+            >
+            <a class="panel" href="alignment.html"
+                ><b>Alignment</b><span>Anchor formulas like fillText: align and baseline.</span></a
+            >
+            <a class="panel" href="animation.html"
+                ><b>Animation</b><span>Lay out once, draw every frame: rotating and scaling formulas.</span></a
+            >
+            <a class="panel" href="plot.html"
+                ><b>Plot labels</b><span>A function plot with TeX tick labels and annotations.</span></a
+            >
+            <a class="panel" href="worker.html"
+                ><b>Worker</b><span>OffscreenCanvas in a web worker, fonts via registerKatexFonts.</span></a
+            >
+            <a class="panel" href="../report/index.html"
+                ><b>Comparison gallery</b><span>Every test formula: KaTeX HTML vs. canvas vs. difference.</span></a
+            >
+        </div>
+
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "katex-canvas";
+            import { fitWidth, header, hidpi, themeColor } from "./common.mjs";
+
+            header("index.html");
+            const canvas = document.getElementById("hero");
+            const formulas = [
+                ["e^{i\\pi} + 1 = 0", 38, -0.08],
+                ["\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}", 32, 0.05],
+                ["\\nabla \\times \\vec{E} = -\\frac{\\partial \\vec{B}}{\\partial t}", 30, -0.04],
+                [
+                    "\\begin{pmatrix} \\cos\\varphi & -\\sin\\varphi \\\\ \\sin\\varphi & \\cos\\varphi \\end{pmatrix}",
+                    24,
+                    0.1,
+                ],
+                ["\\mathbb{Z}[i] \\subset \\mathbb{C}", 28, 0.12],
+            ];
+            async function draw() {
+                const width = fitWidth(canvas);
+                const ctx = hidpi(canvas, width, 260);
+                const boxes = await Promise.all(
+                    formulas.map(([tex, size]) => layoutTeX(katex, tex, ctx, { fontSize: size })),
+                );
+                const spots = [
+                    [0.2, 0.3],
+                    [0.62, 0.26],
+                    [0.3, 0.72],
+                    [0.78, 0.68],
+                    [0.5, 0.5],
+                ];
+                formulas.forEach(([, , angle], i) => {
+                    ctx.save();
+                    ctx.translate(spots[i][0] * width, spots[i][1] * 260);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = i % 2 ? themeColor("--accent-2") : themeColor("--ink");
+                    if (i === 4) ctx.fillStyle = themeColor("--accent");
+                    render(ctx, boxes[i], 0, 0, { align: "center", baseline: "middle" });
+                    ctx.restore();
+                });
+            }
+            draw();
+            addEventListener("resize", draw);
+        </script>
+    </body>
+</html>

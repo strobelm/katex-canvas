@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>Animation · katex-canvas</title>
+    </head>
+    <body>
+        <h1>Animation</h1>
+        <p class="lead">
+            Formulas are laid out once with <code>layoutTeX</code>; every frame only calls <code>render</code>
+            under a new transform. Rotation, scaling and colour come from the context, the glyphs stay sharp.
+        </p>
+        <canvas id="stage" class="panel"></canvas>
+        <p class="note" id="stats"></p>
+        <pre><code>const box = await layoutTeX(katex, tex, ctx, { fontSize: 22 });
+function frame(t) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle(t));
+    ctx.scale(s, s);
+    render(ctx, box, 0, 0, { align: "center", baseline: "middle" });
+    ctx.restore();
+    requestAnimationFrame(frame);
+}</code></pre>
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "katex-canvas";
+            import { fitWidth, header, hidpi, themeColor } from "./common.mjs";
+
+            header("animation.html");
+            const canvas = document.getElementById("stage");
+            const height = 420;
+            let width = fitWidth(canvas);
+            let ctx = hidpi(canvas, width, height);
+            addEventListener("resize", () => {
+                width = fitWidth(canvas);
+                ctx = hidpi(canvas, width, height);
+            });
+
+            const texts = [
+                "\\sin^2\\theta + \\cos^2\\theta = 1",
+                "\\oint_{\\partial\\Omega} \\omega = \\int_\\Omega d\\omega",
+                "\\zeta(s) = \\prod_p \\frac{1}{1-p^{-s}}",
+                "\\binom{n}{k} = \\frac{n!}{k!(n-k)!}",
+                "\\lim_{n\\to\\infty}\\left(1+\\frac{1}{n}\\right)^n = e",
+                "\\mathcal{F}\\{f\\}(\\xi)",
+                "\\det(A - \\lambda I) = 0",
+                "\\varphi = \\frac{1+\\sqrt5}{2}",
+            ];
+            const boxes = await Promise.all(texts.map((t) => layoutTeX(katex, t, ctx, { fontSize: 22 })));
+            const center = await layoutTeX(katex, "e^{i\\varphi}", ctx, { fontSize: 44 });
+
+            let frames = 0;
+            let last = performance.now();
+            function frame(now) {
+                const t = now / 1000;
+                ctx.clearRect(0, 0, width, height);
+                const cx = width / 2;
+                const cy = height / 2;
+                const rx = Math.max(60, Math.min(width / 2 - 120, 330));
+                ctx.fillStyle = themeColor("--accent");
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(t * 0.6);
+                render(ctx, center, 0, 0, { align: "center", baseline: "middle" });
+                ctx.restore();
+                const orbit = boxes.map((box, i) => {
+                    const a = t * 0.25 + (i / boxes.length) * 2 * Math.PI;
+                    return { box, i, a, depth: (Math.sin(a) + 1.6) / 2.6 }; // 0.23 .. 1, a tilted orbit
+                });
+                // Far formulas first, near ones over them.
+                orbit.sort((p, q) => p.depth - q.depth);
+                for (const { box, i, a, depth } of orbit) {
+                    ctx.save();
+                    ctx.translate(cx + Math.cos(a) * rx, cy + Math.sin(a) * 140);
+                    ctx.rotate(Math.sin(t + i) * 0.15);
+                    ctx.scale(depth, depth);
+                    ctx.globalAlpha = 0.35 + 0.65 * depth;
+                    ctx.fillStyle = i % 2 ? themeColor("--accent-2") : themeColor("--ink");
+                    render(ctx, box, 0, 0, { align: "center", baseline: "middle" });
+                    ctx.restore();
+                }
+                if (++frames === 60) {
+                    const ms = (now - last) / 60;
+                    document.getElementById("stats").textContent =
+                        `${boxes.length + 1} formulas, ${(1000 / ms).toFixed(0)} frames per second`;
+                    frames = 0;
+                    last = now;
+                }
+                requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        </script>
+    </body>
+</html>

@@ -1,7 +1,16 @@
 // Type-checked by `npm run test:types`: the declarations fit KaTeX's own
 // typings and the documented usage.
 import katex from "katex";
-import { fontsLoaded, layout, layoutTeX, layoutTeXSync, loadFonts, registerKatexFonts, render } from "katex-canvas";
+import {
+    drawTeX,
+    fontsLoaded,
+    layout,
+    layoutTeX,
+    layoutTeXSync,
+    loadFonts,
+    registerKatexFonts,
+    render,
+} from "katex-canvas";
 import type { Box, HtmlTree } from "katex-canvas";
 
 declare const canvas: HTMLCanvasElement;
@@ -22,6 +31,7 @@ async function main(): Promise<void> {
 
     const offscreen = new OffscreenCanvas(100, 100).getContext("2d")!;
     render(offscreen, box, 0, 0);
+    await drawTeX(katex, offscreen, "e^{i\\pi}", 50, 50, { fontSize: 20, align: "center", baseline: "middle" });
     registerKatexFonts(new URL("https://example.com/fonts/"), { format: "woff" });
 }
 

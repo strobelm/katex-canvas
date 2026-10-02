@@ -1,7 +1,7 @@
 {
     "name": "katex-canvas",
     "version": "0.0.0",
-    "description": "Draw KaTeX formulas on a 2D canvas, matching KaTeX's HTML output",
+    "description": "Draw KaTeX formulas on a 2D canvas (unofficial, not affiliated with KaTeX)",
     "keywords": [
         "katex",
         "canvas",
@@ -49,5 +49,9 @@
     },
     "engines": {
         "node": ">=18"
+    },
+    "homepage": "https://strobelm.github.io/katex-canvas/examples/",
+    "bugs": {
+        "url": "https://github.com/strobelm/katex-canvas/issues"
     }
 }

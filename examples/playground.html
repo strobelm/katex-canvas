@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" />
+        <link rel="stylesheet" href="shared.css" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "katex": "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.mjs",
+                    "katex-canvas": "../src/index.mjs"
+                }
+            }
+        </script>
+        <title>Playground · katex-canvas</title>
+        <style>
+            textarea {
+                width: 100%;
+                min-height: 84px;
+                resize: vertical;
+                padding: 10px;
+            }
+            .controls {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px 18px;
+                align-items: center;
+                margin: 10px 0 16px;
+            }
+            .controls input[type="range"] {
+                vertical-align: middle;
+            }
+            .compare {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            @media (max-width: 720px) {
+                .compare {
+                    grid-template-columns: 1fr;
+                }
+            }
+            .compare h2 {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--muted);
+                margin: 0 0 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+            #html {
+                min-height: 220px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: auto;
+            }
+            #error {
+                color: var(--accent);
+                font-size: 14px;
+                min-height: 1.5em;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Playground</h1>
+        <p class="lead">Type TeX. Left: KaTeX's own HTML. Right: the same formula drawn on a canvas by katex-canvas.</p>
+        <textarea id="tex" spellcheck="false">
+f(x) = \int_{-\infty}^{\infty} \hat f(\xi)\, e^{2\pi i \xi x} \,d\xi</textarea>
+        <div class="controls">
+            <label>size <input id="size" type="range" min="12" max="60" value="28" /> <span id="sizeOut"></span></label>
+            <label>rotate <input id="angle" type="range" min="-180" max="180" value="0" /></label>
+            <label>colour <input id="color" type="color" value="#1d1d1f" /></label>
+            <label><input id="display" type="checkbox" checked /> display mode</label>
+            <label><input id="outline" type="checkbox" /> outline</label>
+            <button id="png">Download PNG (3×)</button>
+        </div>
+        <div id="error"></div>
+        <div class="compare">
+            <div>
+                <h2>KaTeX HTML</h2>
+                <div id="html" class="panel"></div>
+            </div>
+            <div>
+                <h2>Canvas</h2>
+                <canvas id="canvas" class="panel"></canvas>
+            </div>
+        </div>
+        <p class="note">
+            The outline is stroked with the context's stroke style before filling, e.g. for labels on busy backgrounds.
+            With rotation, the formula keeps its vector quality; the HTML side stays upright.
+        </p>
+        <script type="module">
+            import katex from "katex";
+            import { layoutTeX, render } from "katex-canvas";
+            import { fitWidth, header, hidpi, themeColor } from "./common.mjs";
+
+            header("playground.html");
+            const $ = (id) => document.getElementById(id);
+            if (matchMedia("(prefers-color-scheme: dark)").matches) $("color").value = "#ececef";
+            const params = new URLSearchParams(location.hash.slice(1));
+            if (params.get("tex")) $("tex").value = params.get("tex");
+
+            let current = 0;
+            async function update() {
+                const run = ++current;
+                const tex = $("tex").value;
+                const fontSize = +$("size").value;
+                $("sizeOut").textContent = fontSize + "px";
+                const katexOptions = { displayMode: $("display").checked, throwOnError: true, strict: "ignore" };
+                const html = $("html");
+                html.style.fontSize = fontSize / 1.21 + "px"; // .katex is 1.21em
+                html.style.color = $("color").value;
+                let box;
+                const canvas = $("canvas");
+                try {
+                    katex.render(tex, html, katexOptions);
+                    box = await layoutTeX(katex, tex, canvas.getContext("2d"), { fontSize, katexOptions });
+                    $("error").textContent = "";
+                } catch (e) {
+                    $("error").textContent = e.message;
+                    return;
+                }
+                if (run !== current) return;
+                history.replaceState(null, "", "#tex=" + encodeURIComponent(tex));
+                draw(canvas, box);
+                window.lastBox = box;
+            }
+
+            function draw(canvas, box, exportScale) {
+                const width = Math.max(220, fitWidth(canvas));
+                const height = Math.max(220, (box.height + box.depth) * 1.6 + 40);
+                const ctx = exportScale ? canvas.getContext("2d") : hidpi(canvas, width, height);
+                if (exportScale) {
+                    canvas.width = width * exportScale;
+                    canvas.height = height * exportScale;
+                    ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+                }
+                ctx.clearRect(0, 0, width, height);
+                ctx.translate(width / 2, height / 2);
+                ctx.rotate((+$("angle").value * Math.PI) / 180);
+                ctx.fillStyle = $("color").value;
+                ctx.strokeStyle = themeColor("--bg");
+                ctx.lineWidth = 6;
+                ctx.lineJoin = "round";
+                render(ctx, box, 0, 0, { align: "center", baseline: "middle", outline: $("outline").checked });
+            }
+
+            $("png").onclick = () => {
+                if (!window.lastBox) return;
+                const out = document.createElement("canvas");
+                draw(out, window.lastBox, 3);
+                const a = document.createElement("a");
+                a.download = "formula.png";
+                a.href = out.toDataURL("image/png");
+                a.click();
+            };
+            for (const id of ["tex", "size", "angle", "color", "display", "outline"])
+                $(id).addEventListener("input", update);
+            addEventListener("resize", update);
+            update();
+        </script>
+    </body>
+</html>

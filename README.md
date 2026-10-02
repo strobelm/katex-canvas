@@ -1,27 +1,41 @@
 # katex-canvas
 
+> **Unofficial.** katex-canvas is an independent project. It is not affiliated with, endorsed by or
+> maintained by the KaTeX project or Khan Academy. It uses KaTeX, which you install yourself; please
+> report problems with this package [here](https://github.com/strobelm/katex-canvas/issues), not to KaTeX.
+
 Draws [KaTeX](https://katex.org) formulas on a 2D canvas: vector glyphs and paths drawn directly on the
 context, so formulas follow the context's transform (rotated, scaled, in animations) and need no DOM at
 drawing time. The layout reproduces KaTeX's HTML output; in Chromium it is checked pixel by pixel against
 it for several hundred formulas, including KaTeX's own screenshot test suite.
 
+**[Examples and playground](https://strobelm.github.io/katex-canvas/examples/)** ·
+[comparison gallery](https://strobelm.github.io/katex-canvas/report/)
+
 ```js
 import katex from "katex";
-import { layoutTeX, render } from "katex-canvas";
+import { drawTeX } from "katex-canvas";
 import "katex/dist/katex.css"; // defines the fonts (or see registerKatexFonts below)
 
 const ctx = canvas.getContext("2d");
-const box = await layoutTeX(katex, "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", ctx, { fontSize: 24 });
 ctx.fillStyle = "navy";
-render(ctx, box, 10, 10 + box.height); // (x, y) is the left end of the baseline
+await drawTeX(katex, ctx, "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", 200, 50, {
+    fontSize: 24,
+    align: "center", // like the canvas' textAlign
+    baseline: "middle", // like textBaseline
+});
 ```
 
 `npm install katex-canvas katex` — KaTeX is a peer dependency; you choose its version within the supported
 range (currently `>=0.18.9 <0.20`).
 
-This package is not affiliated with the KaTeX project.
-
 ## API
+
+### `drawTeX(katex, ctx, tex, x, y, options) → Promise<Box>`
+
+Typesets, lays out and draws in one call, like `fillText`. Takes the options of `layoutTeX` and `render`
+below. To draw the same formula repeatedly (animations, redraws), lay it out once with `layoutTeX` and call
+`render` each time instead.
 
 ### `layoutTeX(katex, tex, ctx, options) → Promise<Box>`
 
@@ -43,9 +57,15 @@ The returned box has `width`, `height` (above the baseline), `depth` (below), `f
 
 ### `render(ctx, box, x, y, options?)`
 
-Draws the box with its baseline starting at `(x, y)`. Parts without an explicit `\color` use the
-context's current `fillStyle`. Options: `images` (as above), `outline: true` to first stroke everything
-with the context's `strokeStyle` and `lineWidth` (e.g. for a halo).
+Draws a laid-out box at `(x, y)`. Parts without an explicit `\color` use the context's current
+`fillStyle`; the context's transform applies as for any drawing. Options:
+
+- `align`: `"left"` (default), `"center"` or `"right"`, as the canvas' `textAlign`.
+- `baseline`: `"alphabetic"` (default: the formula's baseline), `"top"`, `"middle"` or `"bottom"`, as
+  `textBaseline`, where top and bottom are the box's extent.
+- `outline: true`: first stroke everything with the context's `strokeStyle` and `lineWidth`, e.g. for a
+  halo around labels on busy backgrounds.
+- `images`: as above.
 
 ### Synchronous use: `layoutTeXSync`, `fontsLoaded`, `loadFonts`
 
@@ -120,4 +140,7 @@ test:browser` regenerates it after deliberate changes.
 
 ## License
 
-MIT. The test corpus includes KaTeX's screenshot test cases (MIT, see `test/corpus/LICENSE-KaTeX`).
+MIT, see [LICENSE](LICENSE). KaTeX and its fonts are not included; they are licensed by their authors
+(MIT and SIL OFL). katex-canvas is not an official KaTeX package.
+
+The test corpus includes KaTeX's screenshot test cases (MIT, see `test/corpus/LICENSE-KaTeX`).
